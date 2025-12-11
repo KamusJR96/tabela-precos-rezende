@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Mix</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        tbody tr { cursor: pointer; transition: background-color 0.2s; }
+        tbody tr:hover { background-color: #f8f9fa !important; }
+        .status-icon { font-size: 1.1em; margin-left: 6px; vertical-align: middle; }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Mix Mercado Livre</h2>
+            
+            <div class="text-muted small mt-1">
+                <i class="bi bi-person-circle"></i> 
+                Logado como: <strong>{{ usuario_atual.usuario }}</strong> 
+                
+                <span class="badge {{ 'bg-danger' if usuario_atual.cargo == 'admin' else 'bg-secondary' }}">
+                    {{ usuario_atual.cargo|upper }}
+                </span>
+
+                <a href="/logout" class="text-danger text-decoration-none fw-bold ms-2" title="Encerrar sessão segura">
+                    <i class="bi bi-box-arrow-right"></i> Sair
+                </a>
+            </div>
+        </div>
+        
+        <div>
+            <div class="form-check form-switch d-inline-block me-3 align-middle">
+                <input class="form-check-input" type="checkbox" id="toggleST" {% if simulacao_st %}checked{% endif %}>
+                <label class="form-check-label fw-bold {% if simulacao_st %}text-success{% else %}text-muted{% endif %}" for="toggleST">
+                    {% if simulacao_st %}⚡ Ressarcimento ST Ativo{% else %}Simular Ressarcimento ST{% endif %}
+                </label>
+            </div>
+
+            <a href="/configuracoes" class="btn btn-primary me-2" title="Gerenciar Marcas"><i class="bi bi-gear-fill"></i> Marcas</a>
+            <a href="/dashboard" class="btn btn-info text-white me-2" title="Analytics"><i class="bi bi-graph-up-arrow"></i> Dash</a>
+            <a href="/novo" class="btn btn-success" title="Cadastrar Novo SKU"><i class="bi bi-plus-lg"></i> Novo Produto</a>
+        </div>
+    </div>
+
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body p-3">
+            <form action="/" method="GET" class="d-flex gap-2">
+                <input type="text" name="q" class="form-control form-control-lg" 
+                       placeholder="🔍 Buscar por SKU, Nome ou Marca..." 
+                       value="{{ busca_atual if busca_atual else '' }}">
+                <button type="submit" class="btn btn-primary btn-lg">Buscar</button>
+                {% if busca_atual %}
+                    <a href="/" class="btn btn-outline-secondary btn-lg">Limpar</a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th class="ps-3">SKU</th>
+                            <th>Marca</th>
+                            <th>Nome</th>
+                            <th>Custo Base</th>
+                            <th>Preço Clássico</th>
+                            <th>Preço Premium</th>
+                            <th class="text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for produto in produtos %}
+                        <tr onclick="window.location='/editar/{{ produto.sku }}'">
+                            <td class="ps-3"><strong>{{ produto.sku }}</strong></td>
+                            <td><span class="badge bg-secondary">{{ produto.marca_nome }}</span></td>
+                            <td>{{ produto.nome }}</td>
+                            <td>R$ {{ "%.2f"|format(produto.custo) }}</td>
+                            
+                            <td class="text-primary fw-bold">
+                                R$ {{ "%.2f"|format(produto.preco_classico) }}
+                                {% if produto.status_classico == 'up' %}
+                                    <i class="bi bi-caret-up-fill text-success status-icon" title="Margem Positiva"></i>
+                                {% elif produto.status_classico == 'down' %}
+                                    <i class="bi bi-caret-down-fill text-danger status-icon" title="Prejuízo"></i>
+                                {% else %}
+                                    <i class="bi bi-dash-lg text-warning status-icon" title="Margem Neutra/Zero"></i>
+                                {% endif %}
+                            </td>
+
+                            <td class="text-warning fw-bold">
+                                R$ {{ "%.2f"|format(produto.preco_premium) }}
+                                {% if produto.status_premium == 'up' %}
+                                    <i class="bi bi-caret-up-fill text-success status-icon" title="Margem Positiva"></i>
+                                {% elif produto.status_premium == 'down' %}
+                                    <i class="bi bi-caret-down-fill text-danger status-icon" title="Prejuízo"></i>
+                                {% else %}
+                                    <i class="bi bi-dash-lg text-secondary status-icon" title="Margem Neutra/Zero"></i>
+                                {% endif %}
+                            </td>
+
+                            <td class="text-center">
+                                <a href="/deletar_produto/{{ produto.sku }}" 
+                                   class="btn btn-sm btn-outline-danger position-relative" 
+                                   style="z-index: 2;"
+                                   title="Excluir Registro"
+                                   onclick="event.stopPropagation(); return confirm('Atenção: Confirmar exclusão definitiva de {{ produto.nome }}?');">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <h4>Nenhum registro encontrado</h4>
+                                <p>Utilize o botão "Novo Produto" para iniciar o cadastro.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('toggleST').addEventListener('change', async function() {
+        try {
+            await fetch('/api/toggle_st', { method: 'POST' });
+            window.location.reload(); // Force reload para atualizar cálculos server-side
+        } catch (e) {
+            console.error("Erro de comunicação com API de toggle", e);
+            alert("Falha ao alterar modo de simulação.");
+        }
+    });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

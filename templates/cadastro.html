@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulário de Produto</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        .card-header { background-color: #f8f9fa; font-weight: bold; }
+        .resultado-box { background-color: #e9ecef; padding: 10px; border-radius: 5px; font-weight: bold; font-size: 1.2em; }
+        .info-custo { font-size: 0.85em; color: #555; background-color: #f1f3f5; padding: 8px; border-radius: 4px; border: 1px solid #dee2e6; }
+        .info-custo label { display: block; font-weight: bold; margin-bottom: 2px; }
+        .info-custo span { display: block; font-weight: bold; }
+        .negativo { color: #dc3545; }
+        .positivo { color: #198754; }
+
+        @media print {
+            .no-print, .btn, .nav-tabs, h2, .mb-4 { display: none !important; }
+            body, .container { background-color: white !important; margin: 0 !important; padding: 0 !important; max-width: 100% !important; font-size: 12px; }
+            .card { border: none !important; box-shadow: none !important; margin-bottom: 10px !important; }
+            .card-header { background-color: transparent !important; border-bottom: 2px solid #000 !important; padding-left: 0 !important; font-size: 1.2em; }
+            input, select { border: none !important; background: transparent !important; padding: 0 !important; font-weight: bold; color: #000 !important; appearance: none; }
+            .input-group button { display: none; } 
+            .tab-content { border: none !important; }
+            .tab-pane { display: block !important; opacity: 1 !important; margin-bottom: 20px; page-break-inside: avoid; }
+            #classico::before { content: "CENÁRIO: MERCADO LIVRE CLÁSSICO"; display: block; font-weight: bold; margin-bottom: 5px; text-decoration: underline; }
+            #premium::before { content: "CENÁRIO: MERCADO LIVRE PREMIUM"; display: block; font-weight: bold; margin-bottom: 5px; text-decoration: underline; margin-top: 15px; }
+            .resultado-box, .info-custo, .badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; border: 1px solid #ccc !important; }
+        }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="container mt-4 mb-5">
+    <h2 class="mb-4">
+        {% if produto %}Editar Produto {% else %} Novo Cadastro {% endif %}
+    </h2>
+    
+    <form id="formProduto">
+        <input type="hidden" id="modo_edicao" value="{{ 'true' if produto else 'false' }}">
+        <input type="hidden" id="marca_selecionada" value="{{ produto.marca_nome if produto else '' }}">
+        <input type="hidden" id="flag_simulacao_st" value="{{ 'true' if simulacao_st else 'false' }}">
+
+        <div class="card mb-3">
+            <div class="card-header">Dados Cadastrais</div>
+            <div class="card-body row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">SKU</label>
+                    <input type="text" class="form-control" id="sku" name="sku" 
+                           value="{{ produto.sku if produto else '' }}" 
+                           {% if produto %}readonly style="background-color: #e9ecef;"{% endif %} required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Marca</label>
+                    <select class="form-select" id="marca" name="marca" required>
+                        <option value="" selected disabled>Carregando...</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-8">
+                    <label class="form-label">Descrição / Nome</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="nome" name="nome" 
+                               value="{{ produto.nome if produto else '' }}" required>
+                        <button class="btn btn-warning no-print" type="button" onclick="pesquisarNoML()" title="Pesquisar concorrentes no ML">
+                            <i class="bi bi-search"></i> ML
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Custo e Tributação (%)</div>
+            <div class="card-body row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">Custo Aquisição (R$)</label>
+                    <input type="number" step="0.01" class="form-control calc-input" id="custo" 
+                           value="{{ produto.custo if produto else '0.00' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">ICMS Ent. (%)</label>
+                    <input type="number" step="0.01" class="form-control calc-input" id="icms_ent" 
+                           value="{{ produto.icms_entrada if produto else '0.00' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">ST (%)</label>
+                    <input type="number" step="0.01" class="form-control calc-input" id="st" 
+                           value="{{ produto.st if produto else '0.00' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">IPI (%)</label>
+                    <input type="number" step="0.01" class="form-control calc-input" id="ipi" 
+                           value="{{ produto.ipi if produto else '0.00' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">DIFAL (%)</label>
+                    <input type="number" step="0.01" class="form-control calc-input" id="difal" 
+                           value="{{ produto.difal if produto else '0.00' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">ICMS Saída (%)</label>
+                    <input type="number" step="0.01" class="form-control calc-input" id="icms_sai" 
+                           value="{{ produto.icms_saida if produto else '0.00' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Frete Mercado Livre (R$)</label>
+                    <input type="number" step="0.01" class="form-control calc-input" id="frete_ml" 
+                           value="{{ produto.frete_ml if produto else '0.00' }}">
+                </div>
+            </div>
+        </div>
+
+        <ul class="nav nav-tabs no-print" id="myTab" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#classico" type="button">ML Clássico</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#premium" type="button">ML Premium</button></li>
+        </ul>
+
+        <div class="tab-content p-3 border border-top-0 bg-white" id="myTabContent">
+            
+            <div class="tab-pane fade show active" id="classico">
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-md-2">
+                        <label class="form-label text-primary fw-bold">Nosso Preço</label>
+                        <input type="number" step="0.01" class="form-control calc-input border-primary" id="preco_classico" 
+                               value="{{ produto.preco_classico if produto else '0.00' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label text-muted">Preço Concorrente</label>
+                        <input type="number" step="0.01" class="form-control" id="preco_conc_classico" 
+                               value="{{ produto.preco_conc_classico if produto else '0.00' }}" placeholder="R$ 0,00">
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label">Taxa Marketplace (11.5%)</label>
+                        <input type="text" class="form-control" id="taxa_classico" readonly disabled>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Custo Total Aprox.</label>
+                        <input type="text" class="form-control fw-bold" id="custo_aprox_classico" readonly disabled>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="resultado-box text-center">
+                            Margem: <span id="margem_classico">0.00%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="text-muted border-bottom pb-1 mt-4">Composição de Custos (R$)</h6>
+                <div class="d-flex gap-2 text-center" style="font-size: 0.8rem;">
+                    <div class="info-custo flex-fill"><label>ICMS Ent. (Créd)</label><span id="val_icms_ent_class" class="text-success">R$ 0.00</span></div>
+                    <div class="info-custo flex-fill"><label>ST</label><span id="val_st_class" class="text-danger">R$ 0.00</span></div>
+                    <div class="info-custo flex-fill"><label>IPI</label><span id="val_ipi_class" class="text-danger">R$ 0.00</span></div>
+                    <div class="info-custo flex-fill"><label>PIS/COF (Créd)</label><span id="val_piscofins_ent_class" class="text-success">R$ 0.00</span></div>
+                    <div class="info-custo flex-fill"><label>ICMS Saída</label><span id="val_icms_sai_class" class="text-danger">R$ 0.00</span></div>
+                    <div class="info-custo flex-fill"><label>PIS/COF (Déb)</label><span id="val_piscofins_sai_class" class="text-danger">R$ 0.00</span></div>
+                    <div class="info-custo flex-fill"><label>DIFAL</label><span id="val_difal_class" class="text-danger">R$ 0.00</span></div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="premium">
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-md-2">
+                        <label class="form-label text-primary fw-bold">Nosso Preço</label>
+                        <input type="number" step="0.01" class="form-control calc-input border-primary" id="preco_premium" 
+                               value="{{ produto.preco_premium if produto else '0.00' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label text-muted">Preço Concorrente</label>
+                        <input type="number" step="0.01" class="form-control" id="preco_conc_premium" 
+                               value="{{ produto.preco_conc_premium if produto else '0.00' }}" placeholder="R$ 0,00">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Taxa Marketplace (16.5%)</label>
+                        <input type="text" class="form-control" id="taxa_premium" readonly disabled>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Custo Total Aprox.</label>
+                        <input type="text" class="form-control fw-bold" id="custo_aprox_premium" readonly disabled>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="resultado-box text-center">
+                            Margem: <span id="margem_premium">0.00%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="text-muted border-bottom pb-1 mt-4">Composição de Custos (R$)</h6>
+                <div class="d-flex gap-2 text-center" style="font-size: 0.8rem;">
+                    <div class="info-custo flex-fill"><label>ICMS Ent. (Créd)</label><span id="val_icms_ent_prem" class="text-success">R$ 0.00</span></div>
+                    <div class="info-custo flex-fill"><label>ST</label><span id="val_st_prem" class="text-danger">R$ 0.00</span></div>
+                    <div class="info-custo flex-fill"><label>IPI</label><span id="val_ipi_prem" class="text-danger">R$ 0.00</span></div>
+                    <div class="info-custo flex-fill"><label>PIS/COF (Créd)</label><span id="val_piscofins_ent_prem" class="text-success">R$ 0.00</span></div>
+                    <div class="info-custo flex-fill"><label>ICMS Saída</label><span id="val_icms_sai_prem" class="text-danger">R$ 0.00</span></div>
+                    <div class="info-custo flex-fill"><label>PIS/COF (Déb)</label><span id="val_piscofins_sai_prem" class="text-danger">R$ 0.00</span></div>
+                    <div class="info-custo flex-fill"><label>DIFAL</label><span id="val_difal_prem" class="text-danger">R$ 0.00</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 no-print d-flex gap-2">
+            <button type="button" class="btn btn-primary btn-lg" onclick="salvarProduto()">Salvar Alterações</button>
+            <a href="/" class="btn btn-secondary btn-lg">Cancelar</a>
+            
+            <button type="button" class="btn btn-info btn-lg text-white" data-bs-toggle="modal" data-bs-target="#modalAnalise" onclick="atualizarAnaliseAnalitica()">
+                <i class="bi bi-graph-up"></i> Análise Analítica
+            </button>
+
+            <button type="button" class="btn btn-dark btn-lg ms-auto" onclick="window.print()">
+                <i class="bi bi-printer"></i> Imprimir Ficha
+            </button>
+        </div>
+    </form>
+</div>
+
+<div class="modal fade" id="modalAnalise" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title text-uppercase">Análise Analítica do Produto</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 bg-light">
+                <div class="row">
+                    <div class="col-md-5 border-end">
+                        <span class="badge bg-secondary mb-2" id="ana_marca">MARCA</span>
+                        <h1 class="fw-bold" style="font-size: 3.5rem;" id="ana_preco">R$ 0,00</h1>
+                        <p class="text-muted" id="ana_sku">Produto SKU</p>
+                        
+                        <div class="mt-4 p-3 bg-white border rounded">
+                            <h6 class="fw-bold border-bottom pb-2">CUSTO E TRIBUTAÇÃO (%)</h6>
+                            <div class="d-flex justify-content-between mb-1"><span>Custo Aquisição (R$)</span><span class="fw-bold" id="ana_custo">0,00</span></div>
+                            <div class="d-flex justify-content-between mb-1"><span>ICMS Ent. (%)</span><span id="ana_icms_ent">0,00</span></div>
+                            <div class="d-flex justify-content-between mb-1"><span>ST (%)</span><span id="ana_st">0,00</span></div>
+                            <div class="d-flex justify-content-between mb-1"><span>DIFAL (%)</span><span id="ana_difal">0,00</span></div>
+                            <div class="d-flex justify-content-between mb-1"><span>ICMS Saída (%)</span><span id="ana_icms_sai">0,00</span></div>
+                            
+                            <hr>
+                            <div class="d-flex justify-content-between mb-1 text-muted"><span>Frete Mercado Livre:</span><span id="ana_frete">R$ 0,00</span></div>
+                            <div class="d-flex justify-content-between mb-1 text-muted"><span>Taxa Marketplace:</span><span id="ana_taxa">R$ 0,00</span></div>
+                            <div class="d-flex justify-content-between mt-2 fs-5 fw-bold"><span>Custo Total Aprox.:</span><span id="ana_custo_total">R$ 0,00</span></div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-7 ps-4">
+                        <h6 class="fw-bold text-uppercase mb-4">Composição do Preço (%)</h6>
+
+                        <label class="fw-bold text-secondary small">VALOR DO CUSTO</label>
+                        <div class="d-flex justify-content-between mb-1"><span class="small text-muted">Impacto</span><span class="fw-bold" id="perc_custo">0%</span></div>
+                        <div class="progress mb-3" style="height: 10px;"><div class="progress-bar bg-secondary" id="bar_custo" style="width: 0%"></div></div>
+
+                        <label class="fw-bold text-secondary small">IMPOSTOS & TAXAS</label>
+                        <div class="d-flex justify-content-between mb-1"><span class="small text-muted">Impacto</span><span class="fw-bold" id="perc_impostos">0%</span></div>
+                        <div class="progress mb-3" style="height: 10px;"><div class="progress-bar bg-secondary" id="bar_impostos" style="width: 0%"></div></div>
+
+                        <label class="fw-bold text-secondary small">FRETE</label>
+                        <div class="d-flex justify-content-between mb-1"><span class="small text-muted">Impacto</span><span class="fw-bold" id="perc_frete">0%</span></div>
+                        <div class="progress mb-3" style="height: 10px;"><div class="progress-bar bg-secondary" id="bar_frete" style="width: 0%"></div></div>
+
+                        <label class="fw-bold text-danger small mt-3">MARGEM</label>
+                        <div class="d-flex justify-content-between mb-1"><span class="small text-muted">Resultado</span><span class="fw-bold text-danger" id="perc_margem">0%</span></div>
+                        <div class="progress" style="height: 12px;"><div class="progress-bar bg-danger" id="bar_margem" style="width: 0%"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/script.js"></script> 
+</body>
+</html>
